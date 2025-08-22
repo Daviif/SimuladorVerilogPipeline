@@ -8,8 +8,8 @@ module mux3 #(parameter WIDTH = 32) (
     always @(*) begin
         case (seletor)
             2'b00:   saida = entrada1;
-            2'b01:   saida = entrada2;
-            2'b10:   saida = entrada3;
+            2'b10:   saida = entrada2;
+            2'b01:   saida = entrada3;
             default: saida = {WIDTH{1'bx}}; // Saída indefinida para seletores não utilizados
         endcase
     end

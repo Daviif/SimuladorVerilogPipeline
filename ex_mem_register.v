@@ -5,6 +5,7 @@ module ex_mem_register (
     input wire [31:0]  alu_result_ex,
     input wire [31:0]  read_data2_ex, // Dado a ser escrito na memória (para SW)
     input wire [4:0]   rd_ex,
+    input wire [2:0] funct3_ex,
     // Sinais de controle
     input wire         MemRead_ex,
     input wire         MemtoReg_ex,
@@ -19,7 +20,8 @@ module ex_mem_register (
     output reg         MemRead_mem,
     output reg         MemtoReg_mem,
     output reg         MemWrite_mem,
-    output reg         RegWrite_mem
+    output reg         RegWrite_mem,
+    output reg [2:0] funct3_mem
 );
     always @(posedge clock or posedge reset) begin
         if (reset) begin
@@ -30,6 +32,7 @@ module ex_mem_register (
             MemtoReg_mem <= 1'b0;
             MemWrite_mem  <= 1'b0;
             RegWrite_mem  <= 1'b0;
+            funct3_mem <= 3'b0; 
         end else begin
             alu_result_mem <= alu_result_ex;
             read_data2_mem <= read_data2_ex;
@@ -38,6 +41,7 @@ module ex_mem_register (
             MemtoReg_mem <= MemtoReg_ex;
             MemWrite_mem  <= MemWrite_ex;
             RegWrite_mem  <= RegWrite_ex;
+            funct3_mem <= funct3_ex;
         end
     end
 endmodule

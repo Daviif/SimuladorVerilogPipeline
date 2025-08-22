@@ -1,6 +1,7 @@
 module id_ex_register(
     input wire clock,
     input wire reset,
+    input wire flush,
     input wire [31:0] pc_plus4_id,
     input wire [31:0] read_data1_id,
     input wire [31:0] read_data2_id,
@@ -12,6 +13,7 @@ module id_ex_register(
     input wire MemRead_id, MemWrite_id,
     input wire MemtoReg_id, ALUSrc_id, RegWrite_id,
     input wire [1:0] ALUOp_id,
+    input wire [31:0] instrucao_id,
     //Ex
     output reg [31:0]  pc_plus4_ex,
     output reg [31:0]  read_data1_ex,
@@ -27,7 +29,8 @@ module id_ex_register(
     output reg MemWrite_ex,
     output reg ALUSrc_ex,
     output reg RegWrite_ex,
-    output reg [1:0] ALUOp_ex
+    output reg [1:0] ALUOp_ex,
+    output reg [31:0] instrucao_ex
 );
 
     always @(posedge clock or posedge reset) begin
@@ -47,6 +50,24 @@ module id_ex_register(
             ALUSrc_ex    <= 1'b0;
             RegWrite_ex  <= 1'b0;
             ALUOp_ex     <= 2'b0;
+            instrucao_ex <= 32'b0;
+        end else if (flush) begin
+            branch_ex     <= 1'b0;
+            MemRead_ex    <= 1'b0;
+            MemtoReg_ex   <= 1'b0;
+            MemWrite_ex   <= 1'b0;
+            ALUSrc_ex     <= 1'b0;
+            RegWrite_ex   <= 1'b0;
+            ALUOp_ex      <= 2'b00;
+            instrucao_ex  <= 32'h00000013; // NOP
+            // mantém dados (não usados pela bolha)
+            pc_plus4_ex   <= pc_plus4_id;
+            read_data1_ex <= read_data1_id;
+            read_data2_ex <= read_data2_id;
+            immediate_ex  <= immediate_id;
+            rs1_ex        <= rs1_id;
+            rs2_ex        <= rs2_id;
+            rd_ex         <= rd_id;
         end else begin
             // Passa os valores e sinais para o próximo estágio
             pc_plus4_ex   <= pc_plus4_id;
@@ -63,6 +84,7 @@ module id_ex_register(
             ALUSrc_ex    <= ALUSrc_id;
             RegWrite_ex  <= RegWrite_id;
             ALUOp_ex     <= ALUOp_id;
+            instrucao_ex <= instrucao_id;
         end
     end
 endmodule

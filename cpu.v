@@ -4,7 +4,7 @@ module cpu (
 );
 
     // ==== Sinais e fios ====
-    wire pc_write_if;
+    wire pc_write;
     wire if_id_write;
     wire flush_id_ex;
     wire pc_src_ctrl;
@@ -30,6 +30,7 @@ module cpu (
     wire [1:0] ALUOp_id;
 
     // ==== Estágio EX ====
+    wire [31:0] instrucao_ex;
     wire [31:0] read_data1_ex, read_data2_ex;
     wire [31:0] immediate_ex;
     wire [4:0] rs1_ex, rs2_ex, rd_ex;
@@ -37,6 +38,7 @@ module cpu (
     wire [31:0] alu_result_ex;
     wire [3:0] alu_control_ex;
     wire zero_ex;
+    wire [1:0] ALUOp_ex;
 
     wire branch_ex, MemRead_ex, MemtoReg_ex, MemWrite_ex, ALUSrc_ex, RegWrite_ex;
 
@@ -45,6 +47,7 @@ module cpu (
     wire [31:0]  read_data2_mem;
     wire [31:0]  read_data_from_mem;
     wire [4:0] rd_mem;
+    wire [2:0] funct3_mem; 
 
     wire MemRead_mem, MemtoReg_mem, MemWrite_mem, RegWrite_mem;
 
@@ -56,16 +59,16 @@ module cpu (
 
     wire MemtoReg_wb, RegWrite_wb;
     
-    // ==== INSTANCIAÇÃO DOS MÓDULOS DE HAZARD E FORWARDING ====
+    // ==== INSTANCIAÇÃO DOS MÓDulos DE HAZARD E FORWARDING ====
 
-    hazard hazard(
+    hazard hazard_unit(
         .rs1_id(rs1_id),
         .rs2_id(rs2_id),
         .rd_ex(rd_ex),
         .MemRead_ex(MemRead_ex),
         .pc_write(pc_write),
         .if_id_write(if_id_write),
-        .flush_id_ex(flush_if_id)
+        .flush_id_ex(flush_id_ex)
     );
 
     wire [1:0] forwardA, forwardB;
@@ -150,6 +153,7 @@ module cpu (
     id_ex_register id_ex_reg (
         .clock(clock),
         .reset(reset),
+        .flush(flush_id_ex),
         .pc_plus4_id(pc_plus4_id),
         .read_data1_id(read_data1_id),
         .read_data2_id(read_data2_id),
@@ -157,7 +161,6 @@ module cpu (
         .rs1_id(rs1_id),
         .rs2_id(rs2_id),
         .rd_id(rd_id),
-        // Sinais de controle
         .branch_id(branch_id),
         .MemRead_id(MemRead_id),
         .MemtoReg_id(MemtoReg_id),
@@ -165,7 +168,7 @@ module cpu (
         .ALUSrc_id(ALUSrc_id),
         .RegWrite_id(RegWrite_id),
         .ALUOp_id(ALUOp_id),
-        // Saídas
+        .instrucao_id(instrucao_id),
         .pc_plus4_ex(pc_plus4_ex),
         .read_data1_ex(read_data1_ex),
         .read_data2_ex(read_data2_ex),
@@ -179,26 +182,26 @@ module cpu (
         .MemWrite_ex(MemWrite_ex),
         .ALUSrc_ex(ALUSrc_ex),
         .RegWrite_ex(RegWrite_ex),
-        .ALUOp_ex(ALUOp_ex)
+        .ALUOp_ex(ALUOp_ex),
+        .instrucao_ex(instrucao_ex)
     );
     
     // ==== Estágio 3: Ex ====
-    
     
     // MUXes para Forwarding
     wire [31:0] alu_input1, alu_input2;
     mux3 #(32) fwd_mux_A (
         .seletor(forwardA),
         .entrada1(read_data1_ex),     // 00: Do registrador
-        .entrada2(write_back_data),   // 10: Do estágio WB
-        .entrada3(alu_result_mem),    // 01: Do estágio MEM
+        .entrada2(alu_result_mem),    // 01: Do estágio MEM 
+        .entrada3(write_back_data),   // 10: Do estágio WB 
         .saida(alu_input1)
     );
     mux3 #(32) fwd_mux_B (
         .seletor(forwardB),
-        .entrada1(read_data2_ex),
-        .entrada2(write_back_data),
-        .entrada3(alu_result_mem),
+        .entrada1(read_data2_ex),     // 00: Do registrador
+        .entrada2(alu_result_mem),    // 10: Do estágio MEM 
+        .entrada3(write_back_data),   // 01: Do estágio MEM 
         .saida(alu_input2)
     );
 
@@ -213,8 +216,8 @@ module cpu (
 
     alu_control aluCtrl(
         .ALUOp(ALUOp_ex),
-        .funct3(immediate_ex[14:12]),
-        .funct7(immediate_ex[31:25]),
+        .funct3(instrucao_ex[14:12]),
+        .funct7(instrucao_ex[31:25]),
         .alu_control(alu_control_ex)
     );
 
@@ -232,17 +235,17 @@ module cpu (
         .clock(clock),
         .reset(reset),
         .alu_result_ex(alu_result_ex),
-        .read_data2_ex(alu_input2), // Encaminha o valor correto para SW
+        .read_data2_ex(alu_input2), 
         .rd_ex(rd_ex),
-        // Sinais de controle
+        .funct3_ex(instrucao_ex[14:12]),
         .MemRead_ex(MemRead_ex),
         .MemtoReg_ex(MemtoReg_ex),
         .MemWrite_ex(MemWrite_ex),
         .RegWrite_ex(RegWrite_ex),
-        // Saídas
         .alu_result_mem(alu_result_mem),
-        .read_data2_ex(read_data2_ex),
+        .read_data2_mem(read_data2_mem),
         .rd_mem(rd_mem),
+        .funct3_mem(funct3_mem),
         .MemRead_mem(MemRead_mem),
         .MemtoReg_mem(MemtoReg_mem),
         .MemWrite_mem(MemWrite_mem),
@@ -255,22 +258,20 @@ module cpu (
         .clock(clock),
         .MemRead(MemRead_mem),
         .MemWrite(MemWrite_mem),
-        .funct3(funct3),
+        .funct3(funct3_mem),
         .endereco(alu_result_mem),
-        .write_data(read_data2_mem_in),
-        .read_data(read_data_mem)
+        .write_data(read_data2_mem),
+        .read_data(read_data_from_mem)
     );
 
     mem_wb_register mem_wb_reg (
         .clock(clock),
         .reset(reset),
-        .read_data_mem(read_data_mem),
+        .read_data_mem(read_data_from_mem),
         .alu_result_mem(alu_result_mem),
         .rd_mem(rd_mem),
-        // Sinais de controle
         .MemtoReg_mem(MemtoReg_mem),
         .RegWrite_mem(RegWrite_mem),
-        // Saídas
         .read_data_wb(read_data_wb),
         .alu_result_wb(alu_result_wb),
         .rd_wb(rd_wb),
@@ -278,9 +279,7 @@ module cpu (
         .RegWrite_wb(RegWrite_wb)
     );
 
-    // ==== Estágio 5: WB
-
-    // Write Back
+    // ==== Estágio 5: WB ====
 
     mux2 #(.WIDTH(32)) write_back_mux(
         .seletor(MemtoReg_wb),
@@ -288,6 +287,5 @@ module cpu (
         .entrada2(read_data_wb),
         .saida(write_back_data)
     );
-
 
 endmodule
